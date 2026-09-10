@@ -17,10 +17,10 @@ RUN npm run build
 
 FROM ${BASE_IMAGE_REGISTRY}/chainguard/wolfi-base:latest
 
-ARG TOOLS_PYTHON_VERSION=3.14
+ARG PYTHON_VERSION=3.14
 # Shared libraries the compiled wheels in the venv link against (scikit-learn and
 # tokenizers need libstdc++); tzdata backs zoneinfo lookups.
-RUN apk add --no-cache python-${TOOLS_PYTHON_VERSION} ca-certificates libstdc++ \
+RUN apk add --no-cache python-${PYTHON_VERSION} ca-certificates libstdc++ \
         zlib libffi sqlite-libs bzip2 xz tzdata
 
 WORKDIR /app
@@ -42,15 +42,8 @@ COPY --from=ui /build/ui/dist ./src/agentevals/_static
 ARG VERSION
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
 
-ENV UV_PYTHON_PREFERENCE=only-system
-
-RUN uv sync --frozen --no-dev --extra live --extra postgres --extra kubernetes \
-    # The runtime only uses the uv-managed venv; drop the base image's bundled
-    # pip so its vendored packages (msgpack, pkg_resources) don't ship unused.
-    && rm -rf /usr/lib/python*/site-packages/pip \
-              /usr/lib/python*/site-packages/pip-*.dist-info \
-              /usr/bin/pip* \
-    && ! python3 -c "import pip" 2>/dev/null \
+RUN UV_PYTHON_PREFERENCE=only-system \
+    uv sync --frozen --no-dev --extra live --extra postgres --extra kubernetes \
     && addgroup -g 1000 app \
     && adduser -u 1000 -G app -h /app -D -H app \
     && chown -R app:app /app
